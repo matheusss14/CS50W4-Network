@@ -1,0 +1,202 @@
+{% extends "network/layout.html" %}
+
+{% block title %}
+    All posts
+{% endblock %}
+
+{% block body %}
+    <h1 style="padding: 20px; border-bottom: 1px solid rgba(0, 0, 0, .2);">
+        {{ title }}
+    </h1>
+    {% if user.is_authenticated %}
+        <form action="{% url 'new_post' %}" method="post" class="form1">
+            <h2>New post</h2>
+            {% csrf_token %}
+            <textarea name="text" class="posttext" placeholder="What's on your mind?"></textarea>
+            <input type="submit" class="postbtn" value="Make post">
+        </form>
+    {% endif %}
+
+    <div style="padding: 0 20px; margin-top: 10px;">
+        {% for post in posts %}
+        <div class="post">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="{% url 'profile' post.user.username %}" style="color: black;">
+                    <h2>@{{ post.user }}</h2>
+                </a>
+                {% if user.is_authenticated %}
+                    {% if request.user == post.user %}
+                        <button class="postbtn" onclick="openEdit(`{{ post.id }}`)">Edit post</button>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <h3 id="Ptext_{{post.id}}">{{ post.text }}</h3>
+            <div id="editor_{{post.id}}" style="display: none;">
+                <form id="form_{{post.id}}">
+                    <textarea id="Pedit_{{post.id}}" class="posttext"></textarea>
+                    <input type="submit" class="postbtn" value="Save">
+                </form> 
+            </div>
+
+            <p>{{ post.time }}</p>
+            <div>
+                <form class="LIKEBTN" id="like_{{post.id}}" style="display: flex; align-items: center;">
+                    <button type="submit" id="submit_{{post.id}}" style="background-color: #fff; border: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    
+                        <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </button>
+                    <h3 id="likecounter_{{post.id}}">{{ post.likes_count }}</h3>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.LIKEBTN').forEach(function(form) {
+
+                    let post = form.id.split('_')[1]
+                    fetch(`/hasliked/${post}`, {
+                        method: 'GET',
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        console.log(result)
+                        if (result.hasliked == true) {
+                            button = document.querySelector(`#submit_${post}`)
+                            button.innerHTML = `                        
+                            <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>` 
+                        } else {
+                            button = document.querySelector(`#submit_${post}`)
+                            button.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                            `     
+                        }
+                    })
+
+                    form.addEventListener('submit', function(event) {
+                        event.preventDefault()
+
+                        const formId = event.target.id;
+                        const postId = formId.split('_')[1];
+                        console.log(postId)
+
+                        fetch(`/like/${postId}`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                id: postId,
+                            })
+                            })
+                            .then(response => response.text())
+                            .then(result => {
+                                console.log(result)
+
+                                fetch(`/update/${postId}`, {
+                                    method: 'GET',
+                                })
+                                .then(response => response.json())
+                                .then(result=> {
+                                    item = document.querySelector(`#likecounter_${postId}`)
+                                    item.innerHTML = result.likes
+
+                                    fetch(`/hasliked/${postId}`, {
+                                        method: 'GET',
+                                    })
+                                    .then(response => response.json())
+                                    .then(result => {
+                                        console.log(result)
+                                        if (result.hasliked == true) {
+                                            button = document.querySelector(`#submit_${postId}`)
+                                            button.innerHTML = `                        
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                            </svg>` 
+                                        } else {
+                                            button = document.querySelector(`#submit_${postId}`)
+                                            button.innerHTML = `
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                            </svg>
+                                            `     
+                                        }
+                                    })
+                                })
+                            })
+                            .catch(error => console.error('Error:', error));;
+                        })
+
+                        return false
+                    })
+                })
+        </script>
+
+        <script>
+            function openEdit(id) {
+                console.log(id);
+                const og = document.querySelector(`#Ptext_${id}`);
+                og.style.display = "none";
+                const editor = document.querySelector(`#editor_${id}`);
+                editor.style.display = "block";
+                document.querySelector(`#Pedit_${id}`).innerHTML = og.innerHTML;
+
+                document.querySelector(`#form_${id}`).onsubmit = () => {
+                    const newtext = document.querySelector(`#Pedit_${id}`).value;
+                    fetch(`/edit/${id}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        id: id,
+                        text: newtext,
+                    })
+                    })
+                    .then(response => response.text())
+                    .then(result => {
+                        // Print result
+                    console.log(result);
+                    
+                    }).catch(error => console.error('Error:', error));;
+
+                    editor.style.display = "none";
+                    og.style.display = "block";
+                    og.innerHTML = newtext;
+
+                    return false
+                }
+            }
+        </script>
+
+
+
+
+
+
+
+        <nav aria-label="...">
+            <ul class="pagination">
+                {% if posts.has_previous %}
+              <li class="page-item" style="display: flex;">
+                <a href="?page=1" class="page-link" style="color: black;">&laquo; first</a>
+                <a class="page-link" style="color: black;" href="?page={{ posts.previous_page_number }}" tabindex="-1" aria-disabled="true">Previous</a>
+              </li>
+              {% endif %}
+              <span class="current page-link" style="color: black;">
+                Page {{ posts.number }} of {{ posts.paginator.num_pages }}.
+                </span>
+                {% if posts.has_next %}
+                <li class="page-item" style="display: flex;"> 
+                    <a class="page-link" href="?page={{ posts.next_page_number }}" style="color: black;">Next</a>
+                    <a class="page-link" href="?page={{ posts.paginator.num_pages }}" style="color: black;">last &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+          </nav>
+    </div>
+{% endblock %}

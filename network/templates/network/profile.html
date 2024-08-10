@@ -1,0 +1,131 @@
+{% extends "network/layout.html" %}
+
+{% block title %}
+    {{ user1.username }}
+{% endblock %}
+
+{% block body %}
+    <div style="padding: 20px 30px;">
+        <div style="display: flex; justify-content: space-between;"> 
+            <h1>@{{ user1.username }}</h1> 
+            {% if request.user.is_authenticated %}
+                    
+                    {% if request.user != user1 %}
+                        <button id="follow" class="postbtn">
+                            {% if isfollowing %}
+                            Unfollow
+                            {% else %}
+                            Follow 
+                            {% endif %}
+                        </button>
+                        <script>
+                            var jsVariable = "{{ isFollowing|escapejs }}"
+                            document.getElementById('follow').addEventListener('click', function() {
+                                window.location.href = "{% url 'follow' user1.username %}";
+                                return false
+                            });
+                        </script>
+                    {% endif %}
+
+            {% endif %}
+        </div>
+        <h5>{{ user1.email }}</h5>
+        <div style="display: flex;">
+            <h6 style="margin-right: 15px;">{{ following }} Following</h6>
+            <h6 style="margin-left: 15px;">{{ followers }} Followers</h6>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+        {% if request.user == user1 %}
+        <form action="{% url 'new_post' %}" method="post" class="form1">
+            <h2>New post</h2>
+            {% csrf_token %}
+            <textarea name="text" class="posttext" placeholder="What's on your mind?"></textarea>
+            <input type="submit" class="postbtn" value="Make post">
+        </form>
+        {% endif %}
+    {% endif %}
+
+    <div style="padding: 0 20px; margin-top: 10px;">
+        {% for post in posts %}
+        <div class="post">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="{% url 'profile' post.user.username %}" style="color: black;">
+                    <h2>@{{ post.user }}</h2>
+                </a>
+                {% if user.is_authenticated %}
+                    {% if request.user == post.user %}
+                        <button class="postbtn" onclick="openEdit(`{{ post.id }}`)">Edit post</button>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <p id="Ptext_{{post.id}}">{{ post.text }}</p>
+            <div id="editor_{{post.id}}" style="display: none;">
+                <form id="form_{{post.id}}">
+                    <textarea id="Pedit_{{post.id}}" class="posttext"></textarea>
+                    <input type="submit" class="postbtn" value="Save"></button>
+                </form> 
+            </div>
+            <p>{{ post.time }}</p>
+            <div>Likes: {{ post.likes_count }}</div>
+        </div>
+        {% empty %}
+        This user has not yet created a post.
+        {% endfor %}
+
+        <script>
+            function openEdit(id) {
+                console.log(id);
+                const og = document.querySelector(`#Ptext_${id}`);
+                og.style.display = "none";
+                const editor = document.querySelector(`#editor_${id}`);
+                editor.style.display = "block";
+                document.querySelector(`#Pedit_${id}`).innerHTML = og.innerHTML;
+
+                document.querySelector(`#form_${id}`).onsubmit = () => {
+                    const newtext = document.querySelector(`#Pedit_${id}`).value;
+                    fetch(`/edit/${id}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        id: id,
+                        text: newtext,
+                    })
+                    })
+                    .then(response => response.text())
+                    .then(result => {
+                        // Print result
+                    console.log(result);
+                    
+                    }).catch(error => console.error('Error:', error));;
+
+                    editor.style.display = "none";
+                    og.style.display = "block";
+                    og.innerHTML = newtext;
+
+                    return false
+                }
+            }
+        </script>
+
+        <nav aria-label="...">
+            <ul class="pagination">
+                {% if posts.has_previous %}
+            <li class="page-item" style="display: flex;">
+                <a href="?page=1" class="page-link" style="color: black;">&laquo; first</a>
+                <a class="page-link" style="color: black;" href="?page={{ posts.previous_page_number }}" tabindex="-1" aria-disabled="true">Previous</a>
+            </li>
+            {% endif %}
+            <span class="current page-link" style="color: black;">
+                Page {{ posts.number }} of {{ posts.paginator.num_pages }}.
+                </span>
+                {% if posts.has_next %}
+                <li class="page-item" style="display: flex;"> 
+                    <a class="page-link" href="?page={{ posts.next_page_number }}" style="color: black;">Next</a>
+                    <a class="page-link" href="?page={{ posts.paginator.num_pages }}" style="color: black;">last &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+{% endblock %}
